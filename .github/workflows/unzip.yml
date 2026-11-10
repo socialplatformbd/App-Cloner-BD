@@ -8,6 +8,8 @@ on:
 
 permissions:
   contents: write
+  actions: write
+  workflows: write
 
 jobs:
   unzip:
@@ -16,32 +18,26 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-
-      - name: Setup Unzip
-        run: sudo apt-get update && sudo apt-get install -y unzip
+        with:
+          persist-credentials: true
 
       - name: Extract ZIP File
         run: |
           ZIP_FILE="App-Cloner-BD-Starter.zip"
 
           if [ ! -f "$ZIP_FILE" ]; then
-            echo "ERROR: ZIP file not found!"
+            echo "ZIP file not found!"
             exit 1
           fi
 
           mkdir -p extracted
           unzip -o "$ZIP_FILE" -d extracted
 
-          echo "ZIP extraction completed!"
-          find extracted -maxdepth 4 -type f
-
-      - name: Move Project Files to Root
-        run: |
           cp -a extracted/App-Cloner-BD-Starter/. .
           rm -rf extracted
-          rm -f App-Cloner-BD-Starter.zip
+          rm -f "$ZIP_FILE"
 
-      - name: Commit Extracted Files
+      - name: Commit and Push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -49,8 +45,9 @@ jobs:
           git add -A
 
           if git diff --cached --quiet; then
-            echo "No changes to commit."
-          else
-            git commit -m "Extract App Cloner BD starter project"
-            git push
+            echo "No changes found."
+            exit 0
           fi
+
+          git commit -m "Extract App Cloner BD starter project"
+          git push origin HEAD:main
