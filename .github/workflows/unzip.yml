@@ -8,8 +8,6 @@ on:
 
 permissions:
   contents: write
-  actions: write
-  workflows: write
 
 jobs:
   unzip:
@@ -37,7 +35,7 @@ jobs:
           rm -rf extracted
           rm -f "$ZIP_FILE"
 
-      - name: Commit and Push
+      - name: Commit Extracted Files
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -45,9 +43,10 @@ jobs:
           git add -A
 
           if git diff --cached --quiet; then
-            echo "No changes found."
+            echo "No changes."
             exit 0
           fi
 
           git commit -m "Extract App Cloner BD starter project"
+
           git push origin HEAD:main
