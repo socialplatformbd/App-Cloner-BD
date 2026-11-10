@@ -2,51 +2,95 @@ name: Unzip App Cloner BD
 
 on:
   workflow_dispatch:
+
   push:
     branches:
       - main
+    paths:
+      - 'App-Cloner-BD-Starter.zip'
 
 permissions:
   contents: write
 
+concurrency:
+  group: app-cloner-bd-unzip
+  cancel-in-progress: false
+
 jobs:
   unzip:
+    name: Extract Project Files
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
+          ref: main
           persist-credentials: true
 
-      - name: Extract ZIP File
+      - name: Install Required Tools
         run: |
-          ZIP_FILE="App-Cloner-BD-Starter.zip"
+          sudo apt-get update
+          sudo apt-get install -y unzip rsync
 
-          if [ ! -f "$ZIP_FILE" ]; then
-            echo "ZIP file not found!"
+      - name: Validate ZIP File
+        run: |
+          if [ ! -f "App-Cloner-BD-Starter.zip" ]; then
+            echo "::error::App-Cloner-BD-Starter.zip not found!"
             exit 1
           fi
 
+          unzip -t App-Cloner-BD-Starter.zip
+
+      - name: Extract ZIP
+        run: |
           mkdir -p extracted
-          unzip -o "$ZIP_FILE" -d extracted
 
-          cp -a extracted/App-Cloner-BD-Starter/. .
+          unzip -o App-Cloner-BD-Starter.zip -d extracted
+
+          if [ ! -d "extracted/App-Cloner-BD-Starter" ]; then
+            echo "::error::Expected project folder not found!"
+            exit 1
+          fi
+
+          echo "ZIP extraction successful."
+
+      - name: Copy Project Files
+        run: |
+          rsync -av \
+            --exclude='.github/workflows/' \
+            extracted/App-Cloner-BD-Starter/ ./
+
           rm -rf extracted
-          rm -f "$ZIP_FILE"
+          rm -f App-Cloner-BD-Starter.zip
 
-      - name: Commit Extracted Files
+      - name: Verify Project Structure
+        run: |
+          test -f pubspec.yaml
+          test -f lib/main.dart
+          test -f README.md
+          test -f android/app/src/main/AndroidManifest.xml
+
+          echo "Project structure verified."
+          find lib android -maxdepth 4 -type f
+
+      - name: Commit Extracted Project
         run: |
           git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.email \
+            "41898282+github-actions[bot]@users.noreply.github.com"
 
           git add -A
 
           if git diff --cached --quiet; then
-            echo "No changes."
+            echo "No changes to commit."
             exit 0
           fi
 
           git commit -m "Extract App Cloner BD starter project"
 
           git push origin HEAD:main
+
+      - name: Completed
+        run: |
+          echo "App Cloner BD extraction completed successfully!"
